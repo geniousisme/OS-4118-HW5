@@ -295,14 +295,58 @@ physaddr(struct mm_struct *mm, unsigned long address)
 }
 
 static void
-get_pagerefs(struct vm_area_struct *vma, char *pagerefs)
+get_pagerefs(struct mm_struct *mm, struct vm_area_struct *vma, char *pagerefs)
 {
 	int nr_pages = (vma->vm_end - vma->vm_start) / PAGE_SIZE;
 	int i;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *ptep, pte;
+	spinlock_t *ptl;
+	struct page *page;
+	unsigned long address;
+	int mcount;
 
 	for (i = 0; i < nr_pages; i++)
 		pagerefs[i] = '.';
 	pagerefs[nr_pages] = 0;
+
+	if (mm == NULL)
+		return;
+
+	for (i = 0; i < nr_pages; i++) {
+		address = i * PAGE_SIZE + vma->vm_start;
+
+		pgd = pgd_offset(mm, address);
+		if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+			continue;
+
+		pud = pud_offset(pgd, address);
+		if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+			continue;
+
+		pmd = pmd_offset(pud, address);
+		if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
+			continue;
+
+		ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
+		pte = *ptep;
+		if (!pte_present(pte)) {
+			pte_unmap_unlock(pte, ptl);
+			continue;
+		}
+		page = vm_normal_page(vma, address, pte);
+		if (unlikely(!page))
+			page = pte_page(pte);
+
+		mcount = page_mapcount(page);
+		if (mcount > 9)
+			pagerefs[i] = 'X';
+		else
+			pagerefs[i] = (char) (mcount+48);
+		pte_unmap_unlock(pte, ptl);
+	}
 }
 
 static void
@@ -338,7 +382,10 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 		end -= PAGE_SIZE;
 
 	pagerefs = kmalloc((nr_pages + 1) * sizeof(char), GFP_KERNEL);
-	get_pagerefs(vma, pagerefs);
+	if (mm != NULL)
+		get_pagerefs(mm, vma, pagerefs);
+	else
+		pagerefs[0] = 0;
 
 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %08lx-%08lx %s %n",
 			start,
