@@ -259,6 +259,38 @@ static int do_maps_open(struct inode *inode, struct file *file,
 	return ret;
 }
 
+static unsigned long phys_address(struct mm_struct *mm, unsigned long address)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	unsigned long phys;
+
+	if (mm == NULL)
+		return 0;
+
+	pgd = pgd_offset(mm, address);
+	if (pgd == NULL || pgd_none(*pgd) || pgd_bad(*pgd))
+		return 0;
+
+	pud = pud_offset(pgd, address);
+	if (pud == NULL || pud_none(*pud) || pud_bad(*pud))
+		return 0;
+
+	pmd = pmd_offset(pud, address);
+	if (pmd == NULL || pmd_none(*pmd) || pmd_bad(*pmd))
+		return 0;
+
+	pte = pte_offset_map(pmd, address);
+	if (pte == NULL || pte_none(*pte) || !pte_present(*pte))
+		phys = 0;
+	else
+		phys = (unsigned long) pte_val(pte);
+
+	return phys;
+}
+
 static void
 show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 {
@@ -289,7 +321,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	if (stack_guard_page_end(vma, end))
 		end -= PAGE_SIZE;
 
-	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
+	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %08lx-%08lx %n",
 			start,
 			end,
 			flags & VM_READ ? 'r' : '-',
@@ -297,7 +329,10 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 			flags & VM_EXEC ? 'x' : '-',
 			flags & VM_MAYSHARE ? 's' : 'p',
 			pgoff,
-			MAJOR(dev), MINOR(dev), ino, &len);
+			MAJOR(dev), MINOR(dev), ino,
+			phys_address(mm, start),
+			phys_address(mm, end),
+			&len);
 
 	/*
 	 * Print the dentry name for named mappings, and a
