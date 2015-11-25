@@ -265,6 +265,7 @@ static unsigned long phys_address(struct mm_struct *mm, unsigned long address)
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	spinlock_t *ptl;
 	unsigned long phys;
 
 	if (mm == NULL)
@@ -282,11 +283,12 @@ static unsigned long phys_address(struct mm_struct *mm, unsigned long address)
 	if (pmd == NULL || pmd_none(*pmd) || pmd_bad(*pmd))
 		return 0;
 
-	pte = pte_offset_map(pmd, address);
+	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
 	if (pte == NULL || pte_none(*pte) || !pte_present(*pte))
 		phys = 0;
 	else
 		phys = (unsigned long) pte_val(pte);
+	pte_unmap_unlock(pte, ptl);
 
 	return phys;
 }
