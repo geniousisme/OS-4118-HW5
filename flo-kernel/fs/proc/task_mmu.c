@@ -259,7 +259,8 @@ static int do_maps_open(struct inode *inode, struct file *file,
 	return ret;
 }
 
-static unsigned long phys_address(struct mm_struct *mm, unsigned long address)
+static unsigned long
+physaddr(struct mm_struct *mm, unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -294,6 +295,17 @@ static unsigned long phys_address(struct mm_struct *mm, unsigned long address)
 }
 
 static void
+get_pagerefs(struct vm_area_struct *vma, char *pagerefs)
+{
+	int nr_pages = (vma->vm_end - vma->vm_start) / PAGE_SIZE;
+	int i;
+
+	for (i = 0; i < nr_pages; i++)
+		pagerefs[i] = '.';
+	pagerefs[nr_pages] = 0;
+}
+
+static void
 show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -307,6 +319,8 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	dev_t dev = 0;
 	int len;
 	const char *name = NULL;
+	int nr_pages = (vma->vm_end - vma->vm_start) / PAGE_SIZE;
+	char *pagerefs;
 
 	if (file) {
 		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
@@ -323,7 +337,10 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	if (stack_guard_page_end(vma, end))
 		end -= PAGE_SIZE;
 
-	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %08lx-%08lx %n",
+	pagerefs = kmalloc((nr_pages + 1) * sizeof(char), GFP_KERNEL);
+	get_pagerefs(vma, pagerefs);
+
+	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %08lx-%08lx %s %n",
 			start,
 			end,
 			flags & VM_READ ? 'r' : '-',
@@ -332,9 +349,11 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 			flags & VM_MAYSHARE ? 's' : 'p',
 			pgoff,
 			MAJOR(dev), MINOR(dev), ino,
-			phys_address(mm, start),
-			phys_address(mm, end),
+			physaddr(mm, start), physaddr(mm, end),
+			pagerefs,
 			&len);
+
+	kfree(pagerefs);
 
 	/*
 	 * Print the dentry name for named mappings, and a
