@@ -344,7 +344,7 @@ get_pagerefs(struct mm_struct *mm, struct vm_area_struct *vma, char *pagerefs)
 		if (mcount > 9)
 			pagerefs[i] = 'X';
 		else
-			pagerefs[i] = (char) (mcount+48);
+			pagerefs[i] = (char) (mcount + 48);
 		pte_unmap_unlock(pte, ptl);
 	}
 }
@@ -363,7 +363,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	dev_t dev = 0;
 	int len;
 	const char *name = NULL;
-	int nr_pages = (vma->vm_end - vma->vm_start) / PAGE_SIZE;
+	int nr_pages;
 	char *pagerefs;
 
 	if (file) {
@@ -381,7 +381,9 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	if (stack_guard_page_end(vma, end))
 		end -= PAGE_SIZE;
 
+	nr_pages = (vma->vm_end - vma->vm_start) / PAGE_SIZE;
 	pagerefs = kmalloc((nr_pages + 1) * sizeof(char), GFP_KERNEL);
+
 	if (mm != NULL)
 		get_pagerefs(mm, vma, pagerefs);
 	else
