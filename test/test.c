@@ -31,8 +31,8 @@ static void pr_err(const char *msg)
 /* prints a region with ".........." */
 static int test_1(void)
 {
-	char  *buf = NULL;
-	int   size = NUM_PAGE * PAGE_SIZE, ret = 0;
+	char *buf = NULL;
+	int size = NUM_PAGE * PAGE_SIZE;
 
 	buf = mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
@@ -43,9 +43,7 @@ static int test_1(void)
 
 	print_maps();
 
-	ret = munmap(buf, size);
-
-	if (ret == -1) {
+	if (munmap(buf, size) == -1) {
 		pr_errno(NULL);
 		return -1;
 	}
@@ -56,8 +54,8 @@ static int test_1(void)
 /* prints a region with "1111111111" */
 static int test_2(void)
 {
-	char  *buf = NULL;
-	int   size = NUM_PAGE * PAGE_SIZE, ret = 0, i;
+	char *buf = NULL;
+	int size = NUM_PAGE * PAGE_SIZE, i;
 
 	buf = mmap(NULL, size, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
@@ -71,9 +69,7 @@ static int test_2(void)
 
 	print_maps();
 
-	ret = munmap(buf, size);
-
-	if (ret == -1) {
+	if (munmap(buf, size) == -1) {
 		pr_errno(NULL);
 		return -1;
 	}
@@ -83,8 +79,8 @@ static int test_2(void)
 /* prints a region with ".1.1.1.1.1" */
 static int test_3(void)
 {
-	char  *buf = NULL;
-	int   size = NUM_PAGE * PAGE_SIZE, ret = 0, i = 0;
+	char *buf = NULL;
+	int size = NUM_PAGE * PAGE_SIZE, i;
 
 	buf = mmap(NULL, size, PROT_WRITE,
 			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -99,9 +95,7 @@ static int test_3(void)
 
 	print_maps();
 
-	ret = munmap(buf, size);
-
-	if (ret == -1) {
+	if (munmap(buf, size) == -1) {
 		pr_errno(NULL);
 		return -1;
 	}
@@ -112,32 +106,36 @@ static int test_3(void)
 static int test_4(void)
 {
 	char  *buf = NULL;
-	int   size = NUM_PAGE * PAGE_SIZE, ret = 0, i;
+	int   size = NUM_PAGE * PAGE_SIZE, i;
 	pid_t pid;
 
 	buf = mmap(NULL, size, PROT_WRITE,
 			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	if (buf == MAP_FAILED) {
+		pr_errno(NULL);
+		return -1;
+	}
 
 	for (i = 0; i < 5; i++)
 		buf[i * PAGE_SIZE] = 0;
 
 	pid = fork();
 
-	if (pid == -1) { /* process error */
+	if (pid == -1) {
 		perror("error");
 		return -1;
 	}
 
 	if (pid == 0) {
 		print_maps();
+		munmap(buf, size);
 		exit(0);
 	} else if (pid > 0) {
 		wait(NULL);
 	}
 
-	ret = munmap(buf, size);
-
-	if (ret == -1) {
+	if (munmap(buf, size) == -1) {
 		pr_errno(NULL);
 		return -1;
 	}
@@ -148,11 +146,16 @@ static int test_4(void)
 static int test_5(void)
 {
 	char  *buf = NULL;
-	int   size = NUM_PAGE * PAGE_SIZE, ret = 0, i;
+	int   size = NUM_PAGE * PAGE_SIZE, i;
 	pid_t pid;
 
 	buf = mmap(NULL, size, PROT_WRITE,
 			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+	if (buf == MAP_FAILED) {
+		pr_errno(NULL);
+		return -1;
+	}
 
 	for (i = 6; i < NUM_PAGE; i++)
 		buf[i * PAGE_SIZE] = 0;
@@ -168,14 +171,13 @@ static int test_5(void)
 		for (i = 0; i < 4; i++)
 			buf[i * PAGE_SIZE] = 0;
 		print_maps();
+		munmap(buf, size);
 		exit(0);
 	} else if (pid > 0) {
 		wait(NULL);
 	}
 
-	ret = munmap(buf, size);
-
-	if (ret == -1) {
+	if (munmap(buf, size) == -1) {
 		pr_errno(NULL);
 		return -1;
 	}
@@ -186,7 +188,7 @@ static int test_5(void)
 static int test_6(void)
 {
 	char  *buf = NULL;
-	int   size = 2000 * PAGE_SIZE, ret = 0;
+	int   size = 2000 * PAGE_SIZE;
 
 	buf = mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
@@ -197,9 +199,7 @@ static int test_6(void)
 
 	print_maps();
 
-	ret = munmap(buf, size);
-
-	if (ret == -1) {
+	if (munmap(buf, size) == -1) {
 		pr_errno(NULL);
 		return -1;
 	}
@@ -212,10 +212,10 @@ static int test_7(void)
 	char  *buf;
 	int nr_page = 200000000, i;
 
-	/* Not so sure it is safe or not, should test it */
 	while (1) {
 		nr_page *= 2;
-		buf = mmap(NULL, nr_page * PAGE_SIZE, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		buf = mmap(NULL, nr_page * PAGE_SIZE, PROT_WRITE,
+			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		for (i = 0; i < nr_page; i++)
 			buf[i * PAGE_SIZE] = 0;
 	}
