@@ -129,11 +129,10 @@ static int test_4(void)
 	}
 
 	if (pid == 0) {
-		for (i = 0; i < 5; i++)
-			buf[i * PAGE_SIZE] = 0;
-		sleep(1);
-	} else if (pid > 0) {
 		print_maps();
+		exit(0);
+	} else if (pid > 0) {
+		wait(NULL);
 	}
 
 	ret = munmap(buf, size);
@@ -155,8 +154,6 @@ static int test_5(void)
 	buf = mmap(NULL, size, PROT_WRITE,
 			   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-	for (i = 0; i < 4; i++)
-		buf[i * PAGE_SIZE] = 0;
 	for (i = 6; i < NUM_PAGE; i++)
 		buf[i * PAGE_SIZE] = 0;
 
@@ -168,11 +165,12 @@ static int test_5(void)
 	}
 
 	if (pid == 0) {
-		for (i = 6; i < NUM_PAGE; i++)
+		for (i = 0; i < 4; i++)
 			buf[i * PAGE_SIZE] = 0;
-		sleep(1);
-	} else if (pid > 0) {
 		print_maps();
+		exit(0);
+	} else if (pid > 0) {
+		wait(NULL);
 	}
 
 	ret = munmap(buf, size);
@@ -207,6 +205,7 @@ static int test_6(void)
 	}
 	return 0;
 }
+
 /* triggers the Linux OOM (Out-Of-Memory) killer. */
 static int test_7(void)
 {
