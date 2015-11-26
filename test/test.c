@@ -209,11 +209,16 @@ static int test_6(void)
 /* triggers the Linux OOM (Out-Of-Memory) killer. */
 static int test_7(void)
 {
-	int size = 2000 * PAGE_SIZE;
+	char  *buf;
+	int nr_page = 200000000, i;
 
 	/* Not so sure it is safe or not, should test it */
-	while (1)
-		mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	while (1) {
+		nr_page *= 2;
+		buf = mmap(NULL, nr_page * PAGE_SIZE, PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+		for (i = 0; i < nr_page; i++)
+			buf[i * PAGE_SIZE] = 0;
+	}
 
 	return 0;
 }
